@@ -264,6 +264,49 @@ describe('SlackClient', () => {
     );
   });
 
+  test('getChannelHistory forwards oldest/latest/inclusive/cursor/include_all_metadata to Slack', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: () => Promise.resolve({ ok: true, messages: [], response_metadata: { next_cursor: '' } }),
+    });
+
+    await slackClient.getChannelHistory(
+      'C123456',
+      100,
+      '1715192040.000000',          // oldest
+      '1715278440.000000',          // latest
+      true,                          // inclusive
+      'dXNlcjpVMDYxTkZUVDI=',        // cursor
+      true,                          // include_all_metadata
+    );
+
+    const url = (mockFetch as jest.Mock).mock.calls[0][0] as string;
+    expect(url).toContain('https://slack.com/api/conversations.history');
+    expect(url).toContain('channel=C123456');
+    expect(url).toContain('limit=100');
+    expect(url).toContain('oldest=1715192040.000000');
+    expect(url).toContain('latest=1715278440.000000');
+    expect(url).toContain('inclusive=true');
+    expect(url).toContain('cursor=dXNlcjpVMDYxTkZUVDI%3D');
+    expect(url).toContain('include_all_metadata=true');
+  });
+
+  test('getChannelHistory omits optional params when not provided', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: () => Promise.resolve({ ok: true, messages: [] }),
+    });
+
+    await slackClient.getChannelHistory('C123456', 10);
+
+    const url = (mockFetch as jest.Mock).mock.calls[0][0] as string;
+    expect(url).toContain('channel=C123456');
+    expect(url).toContain('limit=10');
+    expect(url).not.toContain('oldest=');
+    expect(url).not.toContain('latest=');
+    expect(url).not.toContain('inclusive=');
+    expect(url).not.toContain('cursor=');
+    expect(url).not.toContain('include_all_metadata=');
+  });
+
   test('getThreadReplies successful response', async () => {
     const mockResponse = {
       ok: true,
@@ -300,6 +343,53 @@ describe('SlackClient', () => {
         },
       })
     );
+  });
+
+  test('getThreadReplies forwards limit/oldest/latest/inclusive/cursor/include_all_metadata to Slack', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: () => Promise.resolve({ ok: true, messages: [], response_metadata: { next_cursor: '' } }),
+    });
+
+    await slackClient.getThreadReplies(
+      'C123456',
+      '1234567890.123456',           // thread_ts
+      50,                            // limit
+      '1715192040.000000',           // oldest
+      '1715278440.000000',           // latest
+      true,                          // inclusive
+      'dXNlcjpVMDYxTkZUVDI=',        // cursor
+      true,                          // include_all_metadata
+    );
+
+    const url = (mockFetch as jest.Mock).mock.calls[0][0] as string;
+    expect(url).toContain('https://slack.com/api/conversations.replies');
+    expect(url).toContain('channel=C123456');
+    expect(url).toContain('ts=1234567890.123456');
+    expect(url).toContain('limit=50');
+    expect(url).toContain('oldest=1715192040.000000');
+    expect(url).toContain('latest=1715278440.000000');
+    expect(url).toContain('inclusive=true');
+    expect(url).toContain('cursor=dXNlcjpVMDYxTkZUVDI%3D');
+    expect(url).toContain('include_all_metadata=true');
+  });
+
+  test('getThreadReplies omits optional params (including limit) when not provided', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: () => Promise.resolve({ ok: true, messages: [] }),
+    });
+
+    await slackClient.getThreadReplies('C123456', '1234567890.123456');
+
+    const url = (mockFetch as jest.Mock).mock.calls[0][0] as string;
+    expect(url).toContain('channel=C123456');
+    expect(url).toContain('ts=1234567890.123456');
+    // limit is intentionally omitted so Slack's natural default (1000) applies.
+    expect(url).not.toContain('limit=');
+    expect(url).not.toContain('oldest=');
+    expect(url).not.toContain('latest=');
+    expect(url).not.toContain('inclusive=');
+    expect(url).not.toContain('cursor=');
+    expect(url).not.toContain('include_all_metadata=');
   });
 
   test('getUsers successful response', async () => {
